@@ -19,6 +19,9 @@ Implementación de un agente autónomo para el entorno del Mundo del Wumpus (tab
 ```bash
 python main.py
 
+
+```
+
 ## 👥 Organización del Equipo y División de Trabajo
 
 | Integrante | Módulos a cargo | Responsabilidades principales |
