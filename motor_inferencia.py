@@ -16,13 +16,22 @@ def aplicar_reglas(base):
                     hubo_novedades = True
                 elif tipo == 'peligrosa' and destino not in base.peligrosas:
                     base.marcar_peligrosa(destino)
-                    hubo_novedades = True   
+                    hubo_novedades = True
+                elif tipo == 'wumpus' and destino not in base.posible_wumpus:
+                    base.marcar_posible_wumpus(destino)
+                    hubo_novedades = True
 
     return hubo_novedades
 
 def inferir(base):
     """Aplica las reglas repetidamente hasta que no surjan más
     conclusiones nuevas (punto fijo), igual que un motor
-    de inferencia de un sistema experto."""
-    while aplicar_reglas(base):
-        pass
+    de inferencia de un sistema experto.
+    Devuelve la cantidad total de novedades deducidas."""
+    total_novedades = 0
+    while True:
+        novedades = aplicar_reglas(base)
+        total_novedades += novedades
+        if not novedades:
+            break
+    return total_novedades
