@@ -60,3 +60,33 @@ def verificar_peligro(tablero, x, y):
     if (x, y) in tablero["pozos"]:
         return "pozo"
     return None
+
+def disparar(tablero, x, y, direccion):
+    """
+    Comprueba si una flecha disparada desde (x, y) en la dirección
+    indicada alcanza al Wumpus.
+    """
+    wumpus = tablero["wumpus"]
+
+    if direccion == "norte" and x == wumpus[0] and y < wumpus[1]:
+        tablero["wumpus_muerto"] = True
+        return "Scream"
+
+    if direccion == "sur" and x == wumpus[0] and y > wumpus[1]:
+        tablero["wumpus_muerto"] = True
+        return "Scream"
+
+    if direccion == "este" and y == wumpus[1] and x < wumpus[0]:
+        tablero["wumpus_muerto"] = True
+        return "Scream"
+
+    if direccion == "oeste" and y == wumpus[1] and x > wumpus[0]:
+        tablero["wumpus_muerto"] = True
+        return "Scream"
+
+    return None
+
+def verificar_movimiento(x, y):
+    if not (1 <= x <= TAMANIO and 1 <= y <= TAMANIO):
+        return "Bump"
+    return None
