@@ -20,7 +20,7 @@ def regla_breeze(casilla, base):
     x, y = casilla
     percepcion = base.percepciones[casilla]
     conclusiones = []
-    if percepcion['breeze']:
+    if not percepcion['breeze']:
         return conclusiones
 
     sospechosas = [
