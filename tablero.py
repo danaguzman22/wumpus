@@ -53,15 +53,18 @@ def percibir(tablero, x, y):
     scream = tablero.get("scream", False)
     tablero["scream"] = False
 
+    wumpus_vivo = (not tablero.get("wumpus_muerto", False)) and tablero["wumpus"] is not None
+
     return {
         "breeze": any(v in tablero["pozos"] for v in vecinas),
-        "stench": (not tablero.get("wumpus_muerto", False)) and tablero["wumpus"] in vecinas,
+        "stench": wumpus_vivo and tablero["wumpus"] in vecinas,
         "glitter": (x, y) == tablero["oro"],
         "scream": scream,
     }
 
 def verificar_peligro(tablero, x, y):
-    if (x, y) == tablero["wumpus"] and not tablero.get("wumpus_muerto", False):
+    # Si el Wumpus está muerto, tablero["wumpus"] pasa a ser None, evitando falsos positivos
+    if tablero["wumpus"] is not None and (x, y) == tablero["wumpus"] and not tablero.get("wumpus_muerto", False):
         return "wumpus"
     if (x, y) in tablero["pozos"]:
         return "pozo"
@@ -74,24 +77,23 @@ def disparar(tablero, x, y, direccion):
     """
     wumpus = tablero["wumpus"]
 
+    if wumpus is None:
+        return None
+
+    acerto = False
     if direccion == "norte" and x == wumpus[0] and y < wumpus[1]:
-        tablero["wumpus_muerto"] = True
-        tablero["scream"] = True
-        return "Scream"
+        acerto = True
+    elif direccion == "sur" and x == wumpus[0] and y > wumpus[1]:
+        acerto = True
+    elif direccion == "este" and y == wumpus[1] and x < wumpus[0]:
+        acerto = True
+    elif direccion == "oeste" and y == wumpus[1] and x > wumpus[0]:
+        acerto = True
 
-    if direccion == "sur" and x == wumpus[0] and y > wumpus[1]:
+    if acerto:
         tablero["wumpus_muerto"] = True
         tablero["scream"] = True
-        return "Scream"
-
-    if direccion == "este" and y == wumpus[1] and x < wumpus[0]:
-        tablero["wumpus_muerto"] = True
-        tablero["scream"] = True
-        return "Scream"
-
-    if direccion == "oeste" and y == wumpus[1] and x > wumpus[0]:
-        tablero["wumpus_muerto"] = True
-        tablero["scream"] = True
+        tablero["wumpus"] = None  
         return "Scream"
 
     return None
