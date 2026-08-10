@@ -53,6 +53,13 @@ class BaseConocimiento:
         self.sospecha_wumpus.discard(casilla)
         self._recalcular_seguras()
 
+    def actualizar_candidatos_wumpus(self, candidatos):
+        candidatos = set(candidatos)
+        self.posible_wumpus = candidatos
+        self.sospecha_wumpus = set(candidatos)
+        self.seguras_wumpus.difference_update(candidatos)
+        self._recalcular_seguras()
+
     def marcar_sospecha_pozo(self, casilla):
         if casilla not in self.seguras_pozo and casilla not in self.peligrosas:
             self.sospecha_pozo.add(casilla)
@@ -93,12 +100,16 @@ class BaseConocimiento:
     def interseccion_wumpus(self):
         if not self.restricciones_wumpus:
             return set()
-        valores = [s for s in self.restricciones_wumpus.values() if s]
+
+        valores = [set(candidatos) for candidatos in self.restricciones_wumpus.values()]
         if not valores:
             return set()
+
         inter = set(valores[0])
         for candidatos in valores[1:]:
             inter &= candidatos
+            if not inter:
+                break
         return inter
 
     def registrar_oro_recogido(self):
@@ -116,3 +127,13 @@ class BaseConocimiento:
             - self.sospecha_pozo
             - self.sospecha_wumpus
         )
+
+    def notificar_wumpus_muerto(self, casilla):
+        """Limpia todas las restricciones cuando el Wumpus muere."""
+        self.wumpus_vivo = False
+        self.posible_wumpus.clear()
+        self.sospecha_wumpus.clear()
+        self.peligrosas.discard(casilla) # Ya no es peligrosa
+        self.seguras.add(casilla)       # Ahora es segura
+        self.seguras_wumpus.add(casilla)
+        self._recalcular_seguras()

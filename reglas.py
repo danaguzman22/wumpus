@@ -33,16 +33,15 @@ def regla_breeze(casilla, base):
 
 
 def regla_stench(casilla, base):
-    """Razonamiento para Wumpus con triangulacion estricta:
-    - SI no hay stench, las adyacentes son seguras de Wumpus.
-    - SI hay stench, se registran candidatas para esa fuente.
-    - El Wumpus se confirma SOLO por interseccion global de todas las fuentes con stench.
-    """
+    """Razonamiento para Wumpus con triangulación estricta por intersección de conjuntos."""
     percepcion = base.percepciones[casilla]
     conclusiones = []
 
+    # SOLUCIÓN: Si el Wumpus está muerto, TODO alrededor es seguro respecto a él
     if not base.wumpus_vivo:
         base.limpiar_restriccion_wumpus(casilla)
+        for vecina in adyacentes(*casilla):
+            conclusiones.append(("segura_wumpus", vecina))
         return conclusiones
 
     if not percepcion["stench"]:
@@ -53,16 +52,13 @@ def regla_stench(casilla, base):
 
     sospechosas = [
         v for v in adyacentes(*casilla)
-        if v not in base.seguras_wumpus and v not in base.posible_wumpus
+        if v not in base.seguras_wumpus
     ]
     base.registrar_restriccion_wumpus(casilla, sospechosas)
 
-    # Se mantienen sospechas (hipotesis), pero NO confirmacion local.
-    for v in sospechosas:
-        conclusiones.append(("sospecha_wumpus", v))
-
-    # Confirmacion estricta: solo por interseccion de todas las fuentes con stench.
     interseccion = base.interseccion_wumpus()
+    base.actualizar_candidatos_wumpus(interseccion)
+
     if len(interseccion) == 1:
         conclusiones.append(("peligrosa_wumpus", next(iter(interseccion))))
 

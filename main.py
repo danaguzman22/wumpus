@@ -197,6 +197,14 @@ def simular():
             percepcion = percibir(tablero, agente.x, agente.y)
             base.registrar_percepcion(agente.x, agente.y, percepcion)
 
+            # --- LIMPIEZA DE FANTASMAS ---
+            # Si la celda es segura (no hay stench ni breeze), forzamos la limpieza de sospechas
+            if not percepcion['stench'] and not percepcion['breeze']:
+                base.limpiar_sospecha_pozo((agente.x, agente.y))
+                base.limpiar_sospecha_wumpus((agente.x, agente.y))
+                # También forzamos a marcarla como segura por si las dudas
+                base.marcar_segura((agente.x, agente.y))
+            # ------------------------------
             # Traza en consola
             print(f"Paso {paso}: Agente en {(agente.x, agente.y)}. Percibe: {percepcion}")
             if percepcion.get("scream"):
@@ -258,31 +266,23 @@ def simular():
                 resultado_disparo = disparar(tablero, agente.x, agente.y, agente.direccion)
                 
                 if resultado_disparo == "Scream":
-                    base.wumpus_vivo = False
-                    base.posible_wumpus.clear()
-                    base.sospecha_wumpus.clear()
-
-                    if sonido_grito:
-                        sonido_grito.play()
-                    
-                    # NUEVA LÓGICA: LIBERAR LA CELDA DEL WUMPUS MUERTO 
+                    # Calculamos dónde estaba el Wumpus para limpiarlo de la base
                     wx, wy = agente.x, agente.y
                     if agente.direccion == "norte": wy += 1
                     elif agente.direccion == "sur": wy -= 1
                     elif agente.direccion == "este": wx += 1
                     elif agente.direccion == "oeste": wx -= 1
-                    celda_wumpus = (wx, wy)
                     
-                    # Si estaba marcada como peligrosa por el Wumpus, la quitamos y la hacemos segura
-                    if hasattr(base, 'peligrosas') and celda_wumpus in base.peligrosas:
-                        base.peligrosas.remove(celda_wumpus)
-                    if hasattr(base, 'seguras'):
-                        base.seguras.add(celda_wumpus)
-                        
-                    print(f' -> Accion elegida: disparar flecha. ¡Grito! El Wumpus en {celda_wumpus} murió y ahora la celda es transitable.')
+                    # Llamamos al nuevo método limpio
+                    base.notificar_wumpus_muerto((wx, wy))
+                    
+                    if sonido_grito:
+                        sonido_grito.play()
+                    
+                    print(f' -> Accion elegida: disparar flecha. ¡Grito! El Wumpus en {(wx, wy)} murió.')
                 else:
-                    print(' -> Accion elegida: disparar flecha. Fallo el disparo.')
-                    
+                    print(' -> Accion elegida: disparar flecha. Fallo el disparo.')  
+
             elif accion == 'salir':
                 if agente.tiene_oro and (agente.x, agente.y) == (1, 1):
                     print('-> Accion elegida: Salir de la cueva con el oro. Victoria.')
