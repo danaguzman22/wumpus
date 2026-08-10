@@ -5,6 +5,7 @@ from motor_inferencia import inferir
 from collections import deque
 import visualizacion
 import pygame
+import os
 
 def _direccion_hacia(origen, destino):
     x1, y1 = origen
