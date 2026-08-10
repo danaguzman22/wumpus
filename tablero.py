@@ -24,6 +24,8 @@ def generar_tablero(cant_pozos=2):
         "wumpus": wumpus,
         "pozos": pozos,
         "oro": oro,
+        "wumpus_muerto": False,
+        "scream": False,
     }
 
 
@@ -48,14 +50,18 @@ def percibir(tablero, x, y):
 
     vecinas = adyacentes(x, y)
 
+    scream = tablero.get("scream", False)
+    tablero["scream"] = False
+
     return {
-    'breeze': any(v in tablero['pozos'] for v in vecinas),
-    'stench': tablero['wumpus'] in vecinas,
-    'glitter': (x, y) == tablero['oro'],
+        "breeze": any(v in tablero["pozos"] for v in vecinas),
+        "stench": (not tablero.get("wumpus_muerto", False)) and tablero["wumpus"] in vecinas,
+        "glitter": (x, y) == tablero["oro"],
+        "scream": scream,
     }
 
 def verificar_peligro(tablero, x, y):
-    if (x, y) == tablero["wumpus"]:
+    if (x, y) == tablero["wumpus"] and not tablero.get("wumpus_muerto", False):
         return "wumpus"
     if (x, y) in tablero["pozos"]:
         return "pozo"
@@ -70,18 +76,22 @@ def disparar(tablero, x, y, direccion):
 
     if direccion == "norte" and x == wumpus[0] and y < wumpus[1]:
         tablero["wumpus_muerto"] = True
+        tablero["scream"] = True
         return "Scream"
 
     if direccion == "sur" and x == wumpus[0] and y > wumpus[1]:
         tablero["wumpus_muerto"] = True
+        tablero["scream"] = True
         return "Scream"
 
     if direccion == "este" and y == wumpus[1] and x < wumpus[0]:
         tablero["wumpus_muerto"] = True
+        tablero["scream"] = True
         return "Scream"
 
     if direccion == "oeste" and y == wumpus[1] and x > wumpus[0]:
         tablero["wumpus_muerto"] = True
+        tablero["scream"] = True
         return "Scream"
 
     return None

@@ -1,105 +1,93 @@
 from tablero import adyacentes
 
-def regla_sin_breeze_ni_stench(casilla, base):
-    """SI no hubo breeze ni stench en 'casilla'
-    ENTONCES todas sus adyacentes son seguras."""
-    x, y = casilla
-    percepcion = base.percepciones[casilla]
-    conclusiones = []
-    if not percepcion['breeze'] and not percepcion['stench']:
-        for vecina in adyacentes(x, y):
-            conclusiones.append(('segura', vecina))
-    return conclusiones
-
 def regla_breeze(casilla, base):
-    """SI hay breeze en 'casilla'
-    ENTONCES al menos una adyacente no confirmada-segura es sospechosa de pozo.
-    Si solo queda una sospechosa,
-    entonces el pozo está confirmado.
-    """
-    x, y = casilla
+    """Razonamiento para pozos:
+    - SI no hay breeze, las adyacentes son seguras de pozo.
+    - SI hay breeze, se generan candidatas y se triangula por interseccion."""
     percepcion = base.percepciones[casilla]
     conclusiones = []
-    if not percepcion['breeze']:
+
+    if not percepcion["breeze"]:
+        base.limpiar_restriccion_pozo(casilla)
+        for vecina in adyacentes(*casilla):
+            conclusiones.append(("segura_pozo", vecina))
         return conclusiones
 
     sospechosas = [
         v for v in adyacentes(*casilla)
-        if v not in base.seguras]
+        if v not in base.seguras_pozo and v not in base.peligrosas
+    ]
+    base.registrar_restriccion_pozo(casilla, sospechosas)
 
     if len(sospechosas) == 1:
-
-        conclusiones.append(
-            ("peligrosa_pozo", sospechosas[0])
-        )
+        conclusiones.append(("peligrosa_pozo", sospechosas[0]))
     else:
         for v in sospechosas:
-            conclusiones.append(
-                ("sospecha_pozo", v)
-            )
+            conclusiones.append(("sospecha_pozo", v))
+
+    interseccion = base.interseccion_pozo()
+    if len(interseccion) == 1:
+        conclusiones.append(("peligrosa_pozo", next(iter(interseccion))))
+
     return conclusiones
 
 
 def regla_stench(casilla, base):
+    """Razonamiento para Wumpus con triangulacion estricta:
+    - SI no hay stench, las adyacentes son seguras de Wumpus.
+    - SI hay stench, se registran candidatas para esa fuente.
+    - El Wumpus se confirma SOLO por interseccion global de todas las fuentes con stench.
     """
-    SI una casilla tiene Stench
-    ENTONCES las casillas vecinas que aún no son seguras
-    son sospechosas de contener el Wumpus.
-
-    Si solo queda una sospechosa, entonces el Wumpus está confirmado.
-    """
-
     percepcion = base.percepciones[casilla]
     conclusiones = []
 
-    if not percepcion["stench"]:
+    if not base.wumpus_vivo:
+        base.limpiar_restriccion_wumpus(casilla)
         return conclusiones
 
-    if not base.wumpus_vivo:
+    if not percepcion["stench"]:
+        base.limpiar_restriccion_wumpus(casilla)
+        for vecina in adyacentes(*casilla):
+            conclusiones.append(("segura_wumpus", vecina))
         return conclusiones
 
     sospechosas = [
         v for v in adyacentes(*casilla)
-        if v not in base.seguras
+        if v not in base.seguras_wumpus and v not in base.posible_wumpus
     ]
+    base.registrar_restriccion_wumpus(casilla, sospechosas)
 
-    if len(sospechosas) == 1:
-        conclusiones.append(
-            ("peligrosa_wumpus", sospechosas[0])
-        )
+    # Se mantienen sospechas (hipotesis), pero NO confirmacion local.
+    for v in sospechosas:
+        conclusiones.append(("sospecha_wumpus", v))
 
-    else:
-        for v in sospechosas:
-            conclusiones.append(
-                ("sospecha_wumpus", v)
-            )
+    # Confirmacion estricta: solo por interseccion de todas las fuentes con stench.
+    interseccion = base.interseccion_wumpus()
+    if len(interseccion) == 1:
+        conclusiones.append(("peligrosa_wumpus", next(iter(interseccion))))
 
     return conclusiones
+
 
 def regla_descartar_sospechas(casilla, base):
-    """
-    SI una casilla fue demostrada como segura
-    ENTONCES deja de ser sospechosa
-    tanto de pozo como de Wumpus.
-    """
-
+    """Descarta sospechas cuando ya hay seguridad parcial por tipo de peligro."""
     conclusiones = []
 
-    if casilla not in base.seguras:
-        return conclusiones
+    if casilla in base.seguras_pozo and casilla in base.sospecha_pozo:
+        conclusiones.append(("limpiar_sospecha_pozo", casilla))
 
-    if casilla in base.sospecha_pozo:
-
-        conclusiones.append(
-            ("limpiar_sospecha_pozo", casilla)
-        )
-
-    if casilla in base.sospecha_wumpus:
-
-        conclusiones.append(
-            ("limpiar_sospecha_wumpus", casilla)
-        )
+    if casilla in base.seguras_wumpus and casilla in base.sospecha_wumpus:
+        conclusiones.append(("limpiar_sospecha_wumpus", casilla))
 
     return conclusiones
 
-REGLAS = [regla_sin_breeze_ni_stench, regla_breeze, regla_stench, regla_descartar_sospechas]
+
+def regla_glitter(casilla, base):
+    """Si hay glitter, se confirma la localizacion del oro."""
+    percepcion = base.percepciones[casilla]
+    if percepcion.get("glitter"):
+        return [("oro_confirmado", casilla)]
+    return []
+
+
+REGLAS = [regla_breeze, regla_stench, regla_descartar_sospechas, regla_glitter]

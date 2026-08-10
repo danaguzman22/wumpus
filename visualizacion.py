@@ -1,70 +1,145 @@
 import pygame
 import sys
+import os
 
 TAMANIO_CASILLA = 150
-MARGEN = 5
 ANCHO_VENTANA = TAMANIO_CASILLA * 4
-ALTO_VENTANA = TAMANIO_CASILLA * 4
+ALTO_HUD = 80
+ALTO_VENTANA = (TAMANIO_CASILLA * 4) + ALTO_HUD
 
-# Paleta de colores
 COLOR_FONDO = (30, 30, 30)
-COLOR_DESCONOCIDO = (70, 70, 70)
-COLOR_SEGURA = (80, 180, 80)
-COLOR_PELIGROSA = (200, 60, 60)
-COLOR_VISITADA = (50, 120, 50)
-COLOR_AGENTE = (50, 150, 255)
 COLOR_TEXTO = (255, 255, 255)
+COLOR_VERDE_CLARO = (100, 255, 100)
+COLOR_ROJO = (200, 60, 60)
+
+imagenes = {}
+
+def cargar_imagenes():
+    archivos = {
+        "piso_normal": "Piso.png",
+        "piso_brillo": "piso oro.png",
+        "pared": "pared.png",
+        "agente": "agente.png",
+        "agente_oro": "agente_oro.png",
+        "agente_flecha": "agente_flecha.png",  # <-- Ya agregada acá
+        "wumpus": "wumpus.png",
+        "pozo": "hole.png",
+        "oro": "oro.png",
+        "brisa": "brisa.png",
+        "hedor": "hedor.png"
+    }
+    
+    # Cargar imágenes de las celdas
+    for clave, nombre_archivo in archivos.items():
+        ruta = os.path.join("images", nombre_archivo)
+        try:
+            img = pygame.image.load(ruta).convert_alpha()
+            imagenes[clave] = pygame.transform.scale(img, (TAMANIO_CASILLA, TAMANIO_CASILLA))
+        except FileNotFoundError:
+            imagenes[clave] = pygame.Surface((TAMANIO_CASILLA, TAMANIO_CASILLA))
+            imagenes[clave].fill((255, 0, 255)) 
+
+    # Cargar pantallas especiales (Menú, Victoria y Derrota/Rendición)
+    pantallas_especiales = {
+        "menu_fondo": "menu_fondo.png",
+        "fin_victoria": "fin_victoria.png",
+        "fin_derrota": "fin_derrota.png"
+    }
+    
+    for clave, nombre_archivo in pantallas_especiales.items():
+        ruta = os.path.join("images", nombre_archivo)
+        try:
+            img = pygame.image.load(ruta).convert()
+            imagenes[clave] = pygame.transform.scale(img, (ANCHO_VENTANA, ALTO_VENTANA))
+        except FileNotFoundError:
+            print(f"Aviso: No se encontró la imagen {ruta}. Se usará un fondo plano.")
 
 def inicializar_pantalla():
     pygame.init()
     pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
     pygame.display.set_caption("Mundo del Wumpus - Motor de Inferencia")
+    cargar_imagenes()
     return pantalla
 
 def manejar_eventos():
-    """Mantiene la ventana responsiva y permite cerrarla con la 'X'."""
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
-def dibujar_estado(pantalla, base, agente):
+def dibujar_estado(pantalla, base, agente, tablero):
     pantalla.fill(COLOR_FONDO)
-    fuente = pygame.font.SysFont(None, 48)
+    
+    oro_pos = tablero.get('oro') if isinstance(tablero, dict) else getattr(tablero, 'oro', None)
+    wumpus_pos = tablero.get('wumpus') if isinstance(tablero, dict) else getattr(tablero, 'wumpus', None)
+    pozos_pos = tablero.get('pozos', []) if isinstance(tablero, dict) else getattr(tablero, 'pozos', [])
 
     for x in range(1, 5):
         for y in range(1, 5):
-            # Inversión del eje Y: (1,1) va abajo a la izquierda
-            rect_x = (x - 1) * TAMANIO_CASILLA + MARGEN
-            rect_y = (4 - y) * TAMANIO_CASILLA + MARGEN
-            ancho_rect = TAMANIO_CASILLA - (MARGEN * 2)
-
+            rect_x = (x - 1) * TAMANIO_CASILLA
+            rect_y = (4 - y) * TAMANIO_CASILLA
             casilla = (x, y)
-            color = COLOR_DESCONOCIDO
-            texto = "?"
-
-            # Determinar color según la Base de Conocimiento
-            if casilla in base.visitadas:
-                color = COLOR_VISITADA
-                texto = "V"
-            elif casilla in base.peligrosas:
-                color = COLOR_PELIGROSA
-                texto = "P"
-            elif casilla in base.seguras:
-                color = COLOR_SEGURA
-                texto = "S"
-
-            # Dibujar fondo de la casilla
-            pygame.draw.rect(pantalla, color, (rect_x, rect_y, ancho_rect, ancho_rect), border_radius=10)
             
-            # Dibujar al agente como un círculo azul si está en esta casilla
+            # CAPA 0: Fondo
+            if casilla == oro_pos:
+                pantalla.blit(imagenes["piso_brillo"], (rect_x, rect_y))
+            else:
+                pantalla.blit(imagenes["piso_normal"], (rect_x, rect_y))
+            
+            # CAPA 1: Percepciones
+            if hasattr(base, 'percepciones') and casilla in base.percepciones:
+                if base.percepciones[casilla].get('breeze'):
+                    pantalla.blit(imagenes["brisa"], (rect_x, rect_y))
+                if base.percepciones[casilla].get('stench'):
+                    pantalla.blit(imagenes["hedor"], (rect_x, rect_y))
+                
+            # CAPA 2: Objetos Reales
+            if casilla == oro_pos and not getattr(agente, 'tiene_oro', False):
+                pantalla.blit(imagenes["oro"], (rect_x, rect_y))
+            if casilla in pozos_pos:
+                pantalla.blit(imagenes["pozo"], (rect_x, rect_y))
+            if casilla == wumpus_pos:
+                pantalla.blit(imagenes["wumpus"], (rect_x, rect_y))
+                
+            # CAPA 3: Niebla de Guerra
+            if casilla not in base.visitadas:
+                pantalla.blit(imagenes["pared"], (rect_x, rect_y))
+                
+            # CAPA 4: Agente 
             if (agente.x, agente.y) == casilla:
-                pygame.draw.circle(pantalla, COLOR_AGENTE, (rect_x + ancho_rect//2, rect_y + ancho_rect//2), ancho_rect//3)
-                texto = "A"
+                tiene_oro = getattr(agente, 'tiene_oro', False)
+                tiene_flecha = getattr(agente, 'tiene_flecha', True)
 
-            # Renderizar el texto centrado
-            superficie_texto = fuente.render(texto, True, COLOR_TEXTO)
-            rect_texto = superficie_texto.get_rect(center=(rect_x + ancho_rect//2, rect_y + ancho_rect//2))
-            pantalla.blit(superficie_texto, rect_texto)
+                if tiene_oro:
+                    pantalla.blit(imagenes["agente_oro"], (rect_x, rect_y))
+                elif tiene_flecha and "agente_flecha" in imagenes:
+                    pantalla.blit(imagenes["agente_flecha"], (rect_x, rect_y))
+                else:
+                    pantalla.blit(imagenes["agente"], (rect_x, rect_y))
 
+    # DIBUJAR EL HUD
+    fuente_hud = pygame.font.SysFont("arial", 24)
+    tiene_oro = getattr(agente, 'tiene_oro', False)
+    tiene_flecha = getattr(agente, 'tiene_flecha', True)
+    texto_estado = f"Agente en: ({agente.x}, {agente.y}) | Oro: {'Sí' if tiene_oro else 'No'} | Flechas: {1 if tiene_flecha else 0}"
+    superficie_texto = fuente_hud.render(texto_estado, True, COLOR_TEXTO)
+    pantalla.blit(superficie_texto, (20, ALTO_VENTANA - ALTO_HUD + 25))
+
+    pygame.display.flip()
+
+def dibujar_menu(pantalla):
+    if "menu_fondo" in imagenes:
+        pantalla.blit(imagenes["menu_fondo"], (0, 0))
+    else:
+        pantalla.fill((30, 30, 30))
+    pygame.display.flip()
+
+def dibujar_fin(pantalla, mensaje_fin):
+    if "VICTORIA" in mensaje_fin and "fin_victoria" in imagenes:
+        pantalla.blit(imagenes["fin_victoria"], (0, 0))
+    elif "fin_derrota" in imagenes:
+        pantalla.blit(imagenes["fin_derrota"], (0, 0))
+    else:
+        pantalla.fill((30, 30, 30))
+        
     pygame.display.flip()
