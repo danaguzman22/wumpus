@@ -143,9 +143,19 @@ def elegir_accion(agente, base):
     return ("detener", None)
 
 def simular():
+    pygame.init() # Asegurate de tener esto para inicializar todos los módulos de pygame
+    pygame.mixer.init() # Inicializa el mezclador de audio
+    
     pantalla = visualizacion.inicializar_pantalla()
     reloj = pygame.time.Clock()
     
+    # Cargar sonido del grito desde la carpeta sound
+    try:
+        sonido_grito = pygame.mixer.Sound(os.path.join("sound", "grito.mp3"))
+    except Exception:
+        sonido_grito = None
+        print("Aviso: No se pudo cargar el archivo de audio del grito.")
+
     # Estados posibles: "MENU", "JUGANDO", "FIN"
     estado = "MENU"
     mensaje_fin = ""
@@ -251,6 +261,9 @@ def simular():
                     base.wumpus_vivo = False
                     base.posible_wumpus.clear()
                     base.sospecha_wumpus.clear()
+
+                    if sonido_grito:
+                        sonido_grito.play()
                     
                     # NUEVA LÓGICA: LIBERAR LA CELDA DEL WUMPUS MUERTO 
                     wx, wy = agente.x, agente.y
